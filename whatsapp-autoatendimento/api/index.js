@@ -42,6 +42,75 @@ const usuarios = [
   },
 ];
 
+/* STATUS */
+
+app.get("/api/status", (req, res) => {
+  res.json({
+    online: true,
+    sistema: "SmartUp Atendimento",
+    webhook: true,
+  });
+});
+
+/* WEBHOOK META */
+
+app.get("/api/webhook", (req, res) => {
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+
+  console.log("Verificação Meta:", {
+    mode,
+    token,
+    challenge,
+  });
+
+  if (
+    mode === "subscribe" &&
+    token === VERIFY_TOKEN
+  ) {
+    return res.status(200).send(challenge);
+  }
+
+  return res.sendStatus(403);
+});
+
+app.post("/api/webhook", (req, res) => {
+  console.log(
+    "Webhook recebido:",
+    JSON.stringify(req.body, null, 2)
+  );
+
+  return res.sendStatus(200);
+});
+
+/* LOGIN */
+
+app.post("/api/login", (req, res) => {
+  const { usuario, senha } = req.body;
+
+  const usuarioEncontrado = usuarios.find(
+    (u) =>
+      u.usuario === usuario &&
+      u.senha === senha
+  );
+
+  if (!usuarioEncontrado) {
+    return res.status(401).json({
+      erro: "Usuário ou senha inválidos",
+    });
+  }
+
+  return res.json({
+    usuario: usuarioEncontrado.usuario,
+    nome: usuarioEncontrado.nome,
+    setor: usuarioEncontrado.setor,
+    tipo: usuarioEncontrado.tipo,
+  });
+});
+
+/* MENU */
+
 function menuPrincipal() {
   return `Olá 👋
 
@@ -74,7 +143,8 @@ function registrarMensagem(numero, remetente, texto) {
 
 function definirSetor(numero, setor) {
   conversas[numero].setor = setor;
-  conversas[numero].status = "aguardando_atendente";
+  conversas[numero].status =
+    "aguardando_atendente";
 }
 
 function processarMensagem(numero, mensagem) {
@@ -82,141 +152,57 @@ function processarMensagem(numero, mensagem) {
     criarConversa(numero);
   }
 
-  registrarMensagem(numero, "cliente", mensagem);
+  registrarMensagem(
+    numero,
+    "cliente",
+    mensagem
+  );
 
   const texto = mensagem.trim().toLowerCase();
 
   let resposta = "";
 
-  if (texto === "1") {
-    definirSetor(numero, "Financeiro");
+  switch (texto) {
+    case "1":
+      definirSetor(numero, "Financeiro");
+      resposta =
+        "💰 Sua conversa foi direcionada para o Financeiro.";
+      break;
 
-    resposta = `💰 Certo!
+    case "2":
+      definirSetor(numero, "Atendimento");
+      resposta =
+        "👨‍💼 Sua conversa foi direcionada para Atendimento.";
+      break;
 
-Sua conversa foi direcionada para o setor Financeiro.
+    case "3":
+      definirSetor(numero, "Logística");
+      resposta =
+        "🚚 Sua conversa foi direcionada para Logística.";
+      break;
 
-Aguarde, em breve um atendente continuará o atendimento por aqui mesmo.`;
+    case "4":
+      definirSetor(numero, "Atendimento");
+      resposta =
+        "🙋 Um atendente humano continuará o atendimento.";
+      break;
 
-  } else if (texto === "2") {
-    definirSetor(numero, "Atendimento");
-
-    resposta = `👨‍💼 Certo!
-
-Sua conversa foi direcionada para o setor de Atendimento.
-
-Aguarde, em breve um atendente continuará o atendimento por aqui mesmo.`;
-
-  } else if (texto === "3") {
-    definirSetor(numero, "Logística");
-
-    resposta = `🚚 Certo!
-
-Sua conversa foi direcionada para o setor de Logística.
-
-Aguarde, em breve um atendente continuará o atendimento por aqui mesmo.`;
-
-  } else if (texto === "4") {
-    definirSetor(numero, "Atendimento");
-
-    resposta = `🙋 Certo!
-
-Um atendente humano irá continuar o atendimento por aqui mesmo.`;
-
-  } else {
-    resposta = menuPrincipal();
+    default:
+      resposta = menuPrincipal();
   }
 
-  registrarMensagem(numero, "bot", resposta);
+  registrarMensagem(
+    numero,
+    "bot",
+    resposta
+  );
 
   return resposta;
 }
 
-/*
-|--------------------------------------------------------------------------
-| STATUS API
-|--------------------------------------------------------------------------
-*/
+/* MENSAGEM */
 
-app.get("/status", (req, res) => {
-  res.json({
-    online: true,
-    sistema: "SmartUp Atendimento",
-    webhook: true,
-  });
-});
-
-/*
-|--------------------------------------------------------------------------
-| WEBHOOK META
-|--------------------------------------------------------------------------
-*/
-
-app.get("/webhook", (req, res) => {
-
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
-
-  if (
-    mode === "subscribe" &&
-    token === VERIFY_TOKEN
-  ) {
-    console.log("Webhook validado");
-
-    return res.status(200).send(challenge);
-  }
-
-  return res.sendStatus(403);
-});
-
-app.post("/webhook", (req, res) => {
-
-  console.log(
-    "Webhook recebido:",
-    JSON.stringify(req.body, null, 2)
-  );
-
-  res.sendStatus(200);
-});
-
-/*
-|--------------------------------------------------------------------------
-| LOGIN
-|--------------------------------------------------------------------------
-*/
-
-app.post("/login", (req, res) => {
-
-  const { usuario, senha } = req.body;
-
-  const usuarioEncontrado = usuarios.find(
-    (u) =>
-      u.usuario === usuario &&
-      u.senha === senha
-  );
-
-  if (!usuarioEncontrado) {
-    return res.status(401).json({
-      erro: "Usuário ou senha inválidos",
-    });
-  }
-
-  res.json({
-    usuario: usuarioEncontrado.usuario,
-    nome: usuarioEncontrado.nome,
-    setor: usuarioEncontrado.setor,
-    tipo: usuarioEncontrado.tipo,
-  });
-});
-
-/*
-|--------------------------------------------------------------------------
-| SIMULAÇÃO DE MENSAGEM
-|--------------------------------------------------------------------------
-*/
-
-app.post("/mensagem", (req, res) => {
-
+app.post("/api/mensagem", (req, res) => {
   const { numero, mensagem } = req.body;
 
   if (!numero || !mensagem) {
@@ -230,44 +216,30 @@ app.post("/mensagem", (req, res) => {
     mensagem
   );
 
-  res.json({
+  return res.json({
     recebido: mensagem,
     resposta,
     conversa: conversas[numero],
   });
 });
 
-/*
-|--------------------------------------------------------------------------
-| LISTAR CONVERSAS
-|--------------------------------------------------------------------------
-*/
+/* CONVERSAS */
 
-app.get("/conversas", (req, res) => {
-
-  const setor = req.query.setor;
-  const tipo = req.query.tipo;
+app.get("/api/conversas", (req, res) => {
+  const { setor, tipo } = req.query;
 
   let lista = Object.values(conversas);
 
   if (tipo !== "admin") {
     lista = lista.filter(
-      (conversa) =>
-        conversa.setor === setor
+      (c) => c.setor === setor
     );
   }
 
-  res.json(lista);
+  return res.json(lista);
 });
 
-/*
-|--------------------------------------------------------------------------
-| BUSCAR CONVERSA
-|--------------------------------------------------------------------------
-*/
-
-app.get("/conversas/:numero", (req, res) => {
-
+app.get("/api/conversas/:numero", (req, res) => {
   const { numero } = req.params;
 
   if (!conversas[numero]) {
@@ -276,28 +248,17 @@ app.get("/conversas/:numero", (req, res) => {
     });
   }
 
-  res.json(conversas[numero]);
+  return res.json(conversas[numero]);
 });
 
-/*
-|--------------------------------------------------------------------------
-| RESPONDER CONVERSA
-|--------------------------------------------------------------------------
-*/
+/* RESPONDER */
 
-app.post("/responder", (req, res) => {
-
+app.post("/api/responder", (req, res) => {
   const {
     numero,
     mensagem,
     usuario,
   } = req.body;
-
-  if (!numero || !mensagem) {
-    return res.status(400).json({
-      erro: "Número e mensagem obrigatórios",
-    });
-  }
 
   if (!conversas[numero]) {
     return res.status(404).json({
@@ -309,17 +270,14 @@ app.post("/responder", (req, res) => {
     remetente: "atendente",
     usuario: usuario || "Atendente",
     texto: mensagem,
-    data: new Date().toLocaleString(
-      "pt-BR"
-    ),
+    data: new Date().toLocaleString("pt-BR"),
   });
 
   conversas[numero].status =
     "em_atendimento";
 
-  res.json({
+  return res.json({
     sucesso: true,
-    conversa: conversas[numero],
   });
 });
 
