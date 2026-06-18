@@ -6,6 +6,9 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+const VERIFY_TOKEN =
+  process.env.VERIFY_TOKEN || "smartup_webhook_123";
+
 const conversas = {};
 
 const usuarios = [
@@ -93,6 +96,7 @@ function processarMensagem(numero, mensagem) {
 Sua conversa foi direcionada para o setor Financeiro.
 
 Aguarde, em breve um atendente continuará o atendimento por aqui mesmo.`;
+
   } else if (texto === "2") {
     definirSetor(numero, "Atendimento");
 
@@ -101,6 +105,7 @@ Aguarde, em breve um atendente continuará o atendimento por aqui mesmo.`;
 Sua conversa foi direcionada para o setor de Atendimento.
 
 Aguarde, em breve um atendente continuará o atendimento por aqui mesmo.`;
+
   } else if (texto === "3") {
     definirSetor(numero, "Logística");
 
@@ -109,12 +114,14 @@ Aguarde, em breve um atendente continuará o atendimento por aqui mesmo.`;
 Sua conversa foi direcionada para o setor de Logística.
 
 Aguarde, em breve um atendente continuará o atendimento por aqui mesmo.`;
+
   } else if (texto === "4") {
     definirSetor(numero, "Atendimento");
 
     resposta = `🙋 Certo!
 
 Um atendente humano irá continuar o atendimento por aqui mesmo.`;
+
   } else {
     resposta = menuPrincipal();
   }
@@ -124,11 +131,68 @@ Um atendente humano irá continuar o atendimento por aqui mesmo.`;
   return resposta;
 }
 
-app.post("/api/login", (req, res) => {
+/*
+|--------------------------------------------------------------------------
+| STATUS API
+|--------------------------------------------------------------------------
+*/
+
+app.get("/status", (req, res) => {
+  res.json({
+    online: true,
+    sistema: "SmartUp Atendimento",
+    webhook: true,
+  });
+});
+
+/*
+|--------------------------------------------------------------------------
+| WEBHOOK META
+|--------------------------------------------------------------------------
+*/
+
+app.get("/webhook", (req, res) => {
+
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+
+  if (
+    mode === "subscribe" &&
+    token === VERIFY_TOKEN
+  ) {
+    console.log("Webhook validado");
+
+    return res.status(200).send(challenge);
+  }
+
+  return res.sendStatus(403);
+});
+
+app.post("/webhook", (req, res) => {
+
+  console.log(
+    "Webhook recebido:",
+    JSON.stringify(req.body, null, 2)
+  );
+
+  res.sendStatus(200);
+});
+
+/*
+|--------------------------------------------------------------------------
+| LOGIN
+|--------------------------------------------------------------------------
+*/
+
+app.post("/login", (req, res) => {
+
   const { usuario, senha } = req.body;
 
   const usuarioEncontrado = usuarios.find(
-    (u) => u.usuario === usuario && u.senha === senha
+    (u) =>
+      u.usuario === usuario &&
+      u.senha === senha
   );
 
   if (!usuarioEncontrado) {
@@ -145,7 +209,14 @@ app.post("/api/login", (req, res) => {
   });
 });
 
-app.post("/api/mensagem", (req, res) => {
+/*
+|--------------------------------------------------------------------------
+| SIMULAÇÃO DE MENSAGEM
+|--------------------------------------------------------------------------
+*/
+
+app.post("/mensagem", (req, res) => {
+
   const { numero, mensagem } = req.body;
 
   if (!numero || !mensagem) {
@@ -154,7 +225,10 @@ app.post("/api/mensagem", (req, res) => {
     });
   }
 
-  const resposta = processarMensagem(numero, mensagem);
+  const resposta = processarMensagem(
+    numero,
+    mensagem
+  );
 
   res.json({
     recebido: mensagem,
@@ -163,20 +237,37 @@ app.post("/api/mensagem", (req, res) => {
   });
 });
 
-app.get("/api/conversas", (req, res) => {
+/*
+|--------------------------------------------------------------------------
+| LISTAR CONVERSAS
+|--------------------------------------------------------------------------
+*/
+
+app.get("/conversas", (req, res) => {
+
   const setor = req.query.setor;
   const tipo = req.query.tipo;
 
   let lista = Object.values(conversas);
 
   if (tipo !== "admin") {
-    lista = lista.filter((conversa) => conversa.setor === setor);
+    lista = lista.filter(
+      (conversa) =>
+        conversa.setor === setor
+    );
   }
 
   res.json(lista);
 });
 
-app.get("/api/conversas/:numero", (req, res) => {
+/*
+|--------------------------------------------------------------------------
+| BUSCAR CONVERSA
+|--------------------------------------------------------------------------
+*/
+
+app.get("/conversas/:numero", (req, res) => {
+
   const { numero } = req.params;
 
   if (!conversas[numero]) {
@@ -188,8 +279,19 @@ app.get("/api/conversas/:numero", (req, res) => {
   res.json(conversas[numero]);
 });
 
-app.post("/api/responder", (req, res) => {
-  const { numero, mensagem, usuario } = req.body;
+/*
+|--------------------------------------------------------------------------
+| RESPONDER CONVERSA
+|--------------------------------------------------------------------------
+*/
+
+app.post("/responder", (req, res) => {
+
+  const {
+    numero,
+    mensagem,
+    usuario,
+  } = req.body;
 
   if (!numero || !mensagem) {
     return res.status(400).json({
@@ -207,10 +309,13 @@ app.post("/api/responder", (req, res) => {
     remetente: "atendente",
     usuario: usuario || "Atendente",
     texto: mensagem,
-    data: new Date().toLocaleString("pt-BR"),
+    data: new Date().toLocaleString(
+      "pt-BR"
+    ),
   });
 
-  conversas[numero].status = "em_atendimento";
+  conversas[numero].status =
+    "em_atendimento";
 
   res.json({
     sucesso: true,
