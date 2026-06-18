@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teste WhatsApp Local</title>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div class="phone">
+
+    <div class="header">
+      <div>
+        <strong>Auto Atendimento</strong>
+        <span>online</span>
+      </div>
+    </div>
+
+    <div id="chat" class="chat"></div>
+
+    <form id="form" class="input-area">
+
+      <input
+        id="mensagem"
+        type="text"
+        placeholder="Digite uma mensagem..."
+        autocomplete="off"
+      />
+
+      <button type="submit">
+        Enviar
+      </button>
+
+    </form>
+
+  </div>
+
+  <script>
+
+    const chat = document.getElementById("chat");
+    const form = document.getElementById("form");
+    const input = document.getElementById("mensagem");
+
+    const numero = "41999999999";
+
+    function adicionarMensagem(texto, tipo) {
+
+      const div = document.createElement("div");
+
+      div.className = `msg ${tipo}`;
+
+      div.innerText = texto;
+
+      chat.appendChild(div);
+
+      chat.scrollTop = chat.scrollHeight;
+
+    }
+
+    async function enviarMensagem(mensagem) {
+
+      adicionarMensagem(mensagem, "cliente");
+
+      try {
+
+        const response = await fetch("/api/mensagem", {
+
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json"
+          },
+
+          body: JSON.stringify({
+            numero,
+            mensagem
+          })
+
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+
+          adicionarMensagem(
+            data.erro || "Erro ao processar mensagem.",
+            "bot"
+          );
+
+          return;
+        }
+
+        adicionarMensagem(data.resposta, "bot");
+
+      } catch (error) {
+
+        console.error(error);
+
+        adicionarMensagem(
+          "Erro de conexão com o servidor.",
+          "bot"
+        );
+
+      }
+
+    }
+
+    form.addEventListener("submit", async (e) => {
+
+      e.preventDefault();
+
+      const mensagem = input.value.trim();
+
+      if (!mensagem) return;
+
+      input.value = "";
+
+      await enviarMensagem(mensagem);
+
+    });
+
+    adicionarMensagem(
+      "Digite 'oi' para iniciar o atendimento.",
+      "bot"
+    );
+
+  </script>
+
+</body>
+</html>

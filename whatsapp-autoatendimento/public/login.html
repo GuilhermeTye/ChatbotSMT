@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartUp Atendimento - Login</title>
+  <link rel="stylesheet" href="smartup.css" />
+</head>
+<body class="login-body">
+
+  <div class="login-card">
+    <div class="brand">
+      <div class="brand-icon">S</div>
+      <div>
+        <h1>SmartUp</h1>
+        <p>Central de Atendimento</p>
+      </div>
+    </div>
+
+    <h2>Entrar no painel</h2>
+
+    <input id="usuario" placeholder="Usuário" />
+    <input id="senha" type="password" placeholder="Senha" />
+
+    <button onclick="login()">Acessar painel</button>
+
+    <p id="erro"></p>
+
+    <div class="login-help">
+      <strong>Teste:</strong> admin / 123
+    </div>
+  </div>
+
+  <script>
+    async function login() {
+      const usuario = document.getElementById("usuario").value;
+      const senha = document.getElementById("senha").value;
+
+      const response = await fetch("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usuario, senha })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        document.getElementById("erro").innerText = data.erro;
+        return;
+      }
+
+      localStorage.setItem("usuarioLogado", JSON.stringify(data));
+      window.location.href = "/painel.html";
+    }
+  </script>
+
+</body>
+</html>

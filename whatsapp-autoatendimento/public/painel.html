@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartUp Atendimento</title>
+  <link rel="stylesheet" href="smartup.css" />
+</head>
+<body>
+
+<header>
+  <div class="header-brand">
+    <div class="logo">S</div>
+    <div>
+      <strong>SmartUp Atendimento</strong>
+      <span id="usuarioInfo">Central de conversas</span>
+    </div>
+  </div>
+
+  <button class="logout" onclick="sair()">Sair</button>
+</header>
+
+<div class="container">
+
+  <aside class="sidebar">
+
+    <div class="sidebar-title">
+      <strong>Conversas</strong>
+      <span>Filtradas pelo setor do usuário</span>
+    </div>
+
+    <div id="listaConversas"></div>
+
+  </aside>
+
+  <main class="chat">
+
+    <div class="chat-header" id="chatHeader">
+      <strong>Selecione uma conversa</strong>
+      <span>As mensagens aparecerão aqui</span>
+    </div>
+
+    <div class="mensagens" id="mensagens"></div>
+
+    <form class="input-area" id="formResposta">
+      <input
+        id="resposta"
+        placeholder="Digite a resposta do atendente..."
+      />
+
+      <button type="submit">
+        Enviar
+      </button>
+    </form>
+
+  </main>
+
+</div>
+
+<script>
+
+let conversaSelecionada = null;
+
+function getUsuario() {
+  return JSON.parse(localStorage.getItem("usuarioLogado"));
+}
+
+function sair() {
+  localStorage.removeItem("usuarioLogado");
+  window.location.href = "/login.html";
+}
+
+async function carregarConversas() {
+
+  const usuarioLogado = getUsuario();
+
+  if (!usuarioLogado) {
+    window.location.href = "/login.html";
+    return;
+  }
+
+  document.getElementById("usuarioInfo").innerText =
+    `${usuarioLogado.nome} | Setor: ${usuarioLogado.setor}`;
+
+  const response = await fetch(
+    `/conversas?setor=${usuarioLogado.setor}&tipo=${usuarioLogado.tipo}`
+  );
+
+  const conversas = await response.json();
+
+  const lista = document.getElementById("listaConversas");
+
+  lista.innerHTML = "";
+
+  if (conversas.length === 0) {
+
+    lista.innerHTML = `
+      <div class="conversa-item">
+        <strong>Nenhuma conversa</strong>
+        <span class="status">
+          Ainda não há atendimento para este setor.
+        </span>
+      </div>
+    `;
+
+    return;
+  }
+
+  conversas.forEach(conversa => {
+
+    const item = document.createElement("div");
+
+    item.className = "conversa-item";
+
+    item.innerHTML = `
+      <strong>${conversa.numero}</strong>
+
+      <span class="badge">
+        ${conversa.setor || "Sem setor"}
+      </span>
+
+      <span class="status">
+        ${conversa.status}
+      </span>
+    `;
+
+    item.onclick = () => selecionarConversa(conversa.numero);
+
+    lista.appendChild(item);
+
+  });
+
+}
+
+async function selecionarConversa(numero) {
+
+  conversaSelecionada = numero;
+
+  const response = await fetch(`/conversas/${numero}`);
+
+  const conversa = await response.json();
+
+  document.getElementById("chatHeader").innerHTML = `
+    <strong>${conversa.numero}</strong>
+    <span>
+      Setor: ${conversa.setor || "Sem setor"}
+      |
+      Status: ${conversa.status}
+    </span>
+  `;
+
+  const mensagensDiv = document.getElementById("mensagens");
+
+  mensagensDiv.innerHTML = "";
+
+  conversa.mensagens.forEach(msg => {
+
+    const div = document.createElement("div");
+
+    div.className = `msg ${msg.remetente}`;
+
+    div.innerText = msg.texto;
+
+    mensagensDiv.appendChild(div);
+
+  });
+
+  mensagensDiv.scrollTop = mensagensDiv.scrollHeight;
+
+}
+
+document.getElementById("formResposta")
+.addEventListener("submit", async (e) => {
+
+  e.preventDefault();
+
+  if (!conversaSelecionada) {
+
+    alert("Selecione uma conversa primeiro.");
+
+    return;
+  }
+
+  const input = document.getElementById("resposta");
+
+  const texto = input.value.trim();
+
+  if (!texto) return;
+
+  await fetch("/responder", {
+
+    method: "POST",
+
+    headers: {
+      "Content-Type": "application/json"
+    },
+
+    body: JSON.stringify({
+
+      numero: conversaSelecionada,
+
+      mensagem: texto,
+
+      usuario: getUsuario().nome
+
+    })
+
+  });
+
+  input.value = "";
+
+  await selecionarConversa(conversaSelecionada);
+
+  await carregarConversas();
+
+});
+
+carregarConversas();
+
+setInterval(() => {
+
+  carregarConversas();
+
+  if (conversaSelecionada) {
+
+    selecionarConversa(conversaSelecionada);
+
+  }
+
+}, 3000);
+
+</script>
+
+</body>
+</html>

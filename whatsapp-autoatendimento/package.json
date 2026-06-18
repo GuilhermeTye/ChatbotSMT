@@ -1,0 +1,16 @@
+{
+  "name": "whatsapp-autoatendimento",
+  "version": "1.0.0",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.107.0",
+    "axios": "^1.16.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1"
+  }
+}
